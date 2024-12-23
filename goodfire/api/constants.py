@@ -1,0 +1,5 @@
+PRODUCTION_BASE_URL = "https://api.goodfire.ai"
+SSE_DONE = "data: [DONE]\n\n"
+SSE_RETRY = "retry: 10000\n\n"
+SSE_DATA = "data: {}\n\n"
+SSE_EVENT = "event: {}\n"
