@@ -13,7 +13,7 @@ In this quickstart, you'll learn how to:
 
 
 ```python Code
-!pip install goodfire
+pip install goodfire
 ```
 
 
