@@ -105,7 +105,7 @@ class HTTPWrapper:
 
 
 class AsyncHTTPWrapper:
-    def __init__(self, inital_backoff_time: float = 1.3, max_retries: int = 5):
+    def __init__(self, inital_backoff_time: float = 2, max_retries: int = 5):
         self.inital_backoff_time = inital_backoff_time
         self.max_retries = max_retries
 
@@ -155,7 +155,7 @@ class AsyncHTTPWrapper:
             except RateLimitException:
                 if _attempt_num < self.max_retries:
                     self._rate_limit_warning()
-                    time.sleep(self.inital_backoff_time**_attempt_num)
+                    time.sleep(self.inital_backoff_time ** (_attempt_num + 1))
                     return await self.post(
                         url, headers, json, _attempt_num + 1, timeout=timeout
                     )
