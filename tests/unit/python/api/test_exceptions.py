@@ -1,6 +1,6 @@
 import pytest
 
-from sdk.python.goodfire.api.exceptions import (
+from goodfire.api.exceptions import (
     ForbiddenException,
     InsufficientFundsException,
     InvalidRequestException,

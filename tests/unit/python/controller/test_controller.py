@@ -1,8 +1,8 @@
 from random import randint
 from uuid import uuid4
 
-from sdk.python.goodfire.controller.controller import Controller
-from sdk.python.goodfire.features.features import Feature, FeatureGroup
+from goodfire.controller.controller import Controller
+from goodfire.features.features import Feature, FeatureGroup
 
 
 def _get_mock_feature():
