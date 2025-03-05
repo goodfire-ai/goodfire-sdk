@@ -11,7 +11,7 @@ from .features.features import (
 )
 from .variants.variants import NestedScope, Variant
 
-__version__ = "0.3.4"
+__version__ = "0.3.5"
 
 __all__ = [
     "Client",
