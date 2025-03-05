@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from sdk.python.goodfire.api.chat.client import ChatAPI
+from goodfire.api.chat.client import ChatAPI
 
 
 def test_chat_completions_streaming():

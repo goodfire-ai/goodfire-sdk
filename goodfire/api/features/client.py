@@ -433,6 +433,33 @@ class AsyncFeaturesAPI:
 
         return ConditionalGroup.from_json(response.json()["conditional"])
 
+    async def attribute(
+        self,
+        messages: list[ChatMessage],
+        index: int,
+        model: Union[SUPPORTED_MODELS, Variant],
+        _fetch_feature_data: bool = True,
+    ):
+        payload = {
+            "messages": messages,
+            "model": model if isinstance(model, str) else model.base_model,
+            "startIndex": index,
+            "endIndex": index,
+        }
+
+        response = await self._http.post(
+            f"{self.base_url}/api/inference/v1/attributions/compute-logit-attribution",
+            headers=self._get_headers(),
+            json=payload,
+        )
+
+        attribution = AttributionResponse(response.json(), self)
+
+        if _fetch_feature_data:
+            await attribution.fetch_features()
+
+        return attribution
+
 
 class FeatureActivation:
     def __init__(self, feature: Feature, activation_strength: float):
@@ -624,27 +651,6 @@ class ContextInspector:
 
         self._features = {}
 
-    async def attribute(
-        self,
-        messages: list[ChatMessage],
-        model: Union[SUPPORTED_MODELS, Variant],
-    ):
-        num_tokens = len(await self._tokenize(messages, model)) - 1
-
-        payload = {
-            "messages": messages,
-            "model": model if isinstance(model, str) else model.base_model,
-            "startIndex": num_tokens,
-            "endIndex": num_tokens,
-        }
-
-        response = await self._http.post(
-            f"{self.base_url}/api/inference/v1/attributions/compute-logit-attribution",
-            headers=self._get_headers(),
-            json=payload,
-        )
-
-        return await self._list([feat["id"] for feat in response.json()["to_add"]])
 
     async def fetch_features(self):
         features: list[Feature] = []
@@ -709,6 +715,92 @@ class ContextInspector:
         for token in self.tokens:
             lookup.update(token.lookup())
         return lookup
+
+
+class TokenActivation:
+    def __init__(self, index: int, activation_strength: float):
+        self.index = index
+        self.activation_strength = activation_strength
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        return f"TokenActivation(index={self.index}, activation={self.activation_strength})"
+
+
+class FeatureAttribution:
+    def __init__(self, feature_id: str, value: float, tokens: list[dict[str, Any]]):
+        self.feature_id = feature_id
+        self.value = value
+        self.token_activations = [
+            TokenActivation(token["index"], token["activation_strength"])
+            for token in tokens
+        ]
+        self._feature: Optional[Feature] = None
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        if self._feature is None:
+            return f"FeatureAttribution(id={self.feature_id}, value={self.value}, tokens={len(self.token_activations)})"
+        else:
+            return f"FeatureAttribution(feature={self._feature}, value={self.value}, tokens={len(self.token_activations)})"
+
+    @property
+    def feature(self) -> Optional[Feature]:
+        return self._feature
+
+    @feature.setter
+    def feature(self, feature: Feature):
+        self._feature = feature
+
+
+class AttributionResponse:
+    def __init__(self, response_data: dict[str, Any], client: AsyncFeaturesAPI):
+        self._client = client
+        self.features = sorted([
+            FeatureAttribution(item["id"], item["value"], item["tokens"])
+            for item in response_data.get("to_ablate", [])
+        ], key = lambda row: row.value,
+        reverse = True)
+        self.num_input_tokens = response_data.get("num_input_tokens", 0)
+        self._features_loaded = False
+
+    async def fetch_features(self):
+        """Fetch feature details for all attributions."""
+        if self._features_loaded:
+            return
+
+        feature_ids = set()
+        for attribution in self.features:
+            feature_ids.add(attribution.feature_id)
+
+        if not feature_ids:
+            self._features_loaded = True
+            return
+
+        features_list = []
+        for chunk_start in range(0, len(feature_ids), 50):
+            features_list += await self._client._list(
+                list(feature_ids)[chunk_start:chunk_start + 50]
+            )
+
+        features_by_id = {str(f.uuid): f for f in features_list}
+
+        # Assign features to attributions
+        for attribution in self.features:
+            if attribution.feature_id in features_by_id:
+                attribution.feature = features_by_id[attribution.feature_id]
+
+        self._features_loaded = True
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        return f"AttributionResponse(features={self.features}, tokens={self.num_input_tokens})"
 
 
 class FeaturesAPI:
@@ -800,9 +892,11 @@ class FeaturesAPI:
     def attribute(
         self,
         messages: list[ChatMessage],
+        index: int,
         model: Union[SUPPORTED_MODELS, Variant],
+        _fetch_feature_data: bool = True,
     ):
-        return run_async_safely(self._async_client.attribute(messages, model))
+        return run_async_safely(self._async_client.attribute(messages, index, model, _fetch_feature_data))
 
     def AutoSteer(
         self,
