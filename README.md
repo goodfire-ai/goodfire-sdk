@@ -718,6 +718,6 @@ response.choices[0].message.content
 
 # Note
 
-For more advanced usage and detailed API reference, check out our [SDK reference](https://docs.goodfire.ai/sdk-reference/) and [example notebooks](https://github.com/goodfire/goodfire-examples).
+For more advanced usage and detailed API reference, check out our [SDK reference](https://docs.goodfire.ai/sdk-reference/) and [example notebooks](https://docs.goodfire.ai/introduction#notebooks).
 
 Built with Meta's Llama series of models.
