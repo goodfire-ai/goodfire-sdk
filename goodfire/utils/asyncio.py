@@ -16,7 +16,12 @@ def run_async_safely(coro: Coroutine[Any, Any, T]) -> T:
     Returns:
         The result of the coroutine
     """
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        # Create a new event loop if one doesn't exist
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
     if loop.is_running():
         result_queue: Queue[tuple[str, Any]] = Queue()
